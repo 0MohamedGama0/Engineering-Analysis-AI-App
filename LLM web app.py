@@ -1,74 +1,104 @@
 import streamlit as st
 import requests
-from PIL import Image
-import io
+import base64
 
-st.set_page_config(page_title="Engineering Analysis AI", page_icon="🔧")
+# ---------------- CONFIG ----------------
+st.set_page_config(
+    page_title="Engineering Analysis AI",
+    page_icon="🔧",
+    layout="centered"
+)
 
+HF_API_KEY = st.secrets["HF_API_KEY"]
+MODEL_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+
+HEADERS = {
+    "Authorization": f"Bearer {HF_API_KEY}",
+    "Content-Type": "application/json"
+}
+
+# ---------------- UI ----------------
 st.title("🔧 Engineering Analysis AI")
-st.caption("Deployed on Streamlit Cloud using Hugging Face Inference API")
+st.caption("Robotics • Design Engineering • Startups")
 
-# ---------------- Domain ----------------
+image = st.file_uploader(
+    "Upload your design image (for reference)",
+    type=["png", "jpg", "jpeg"]
+)
+
 domain = st.selectbox(
-    "Select the domain",
+    "Select design domain",
     [
         "Robotics / Mechanical Systems",
         "Product Design",
-        "CAD Model / 3D Printed",
+        "CAD / 3D Printing",
         "Electronics / PCB Design"
     ]
 )
 
-image = st.file_uploader("Upload an engineering image", type=["jpg", "png"])
-notes = st.text_area("Optional user notes")
+description = st.text_area(
+    "Describe what you see in the image",
+    placeholder="Example: A 4-DOF robotic arm using servo motors and aluminum links..."
+)
 
-# ---------------- Hugging Face API ----------------
-HF_API_KEY = st.secrets["HF_API_KEY"]
+analyze = st.button("Analyze Design")
 
-VISION_MODEL = "Salesforce/blip-image-captioning-base"
-TEXT_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
+# ---------------- PROMPT ----------------
+def build_prompt(domain, description):
+    return f"""
+You are a professional engineering expert.
 
-headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+Domain: {domain}
 
+Design description:
+{description}
 
-API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base"
-HEADERS = {
-    "Authorization": f"Bearer {st.secrets['HF_API_KEY']}"
-}
+Provide a structured engineering analysis including:
+- Technical overview
+- Key components
+- Strengths and weaknesses
+- Design improvements
+- Real-world applications
+"""
 
-def vision_caption(image):
+# ---------------- LLM CALL ----------------
+def call_llm(prompt):
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "temperature": 0.5,
+            "max_new_tokens": 400
+        }
+    }
+
     response = requests.post(
-        API_URL,
+        MODEL_URL,
         headers=HEADERS,
-        files={"image": image}
+        json=payload,
+        timeout=60
     )
 
-    # 🔴 SAFETY CHECK
     if response.status_code != 200:
-        st.error("Hugging Face API Error")
-        st.write(response.text)
-        return "Error analyzing image."
+        st.error(f"Model error: {response.text}")
+        return None
 
     try:
         data = response.json()
         return data[0]["generated_text"]
     except Exception:
-        st.error("Invalid API response")
-        st.write(response.text)
-        return "Model response error."
+        st.error("Failed to parse model response.")
+        st.text(response.text)
+        return None
 
+# ---------------- EXECUTION ----------------
+if analyze:
+    if not description:
+        st.warning("Please describe the design.")
+    else:
+        with st.spinner("Analyzing design..."):
+            prompt = build_prompt(domain, description)
+            result = call_llm(prompt)
 
-# ---------------- Run ----------------
-if st.button("Analyze Design") and image:
-    st.image(image)
-
-    with st.spinner("Understanding image..."):
-        vision_text = vision_caption(image)
-
-    st.info(vision_text)
-
-    with st.spinner("Performing engineering analysis..."):
-        analysis = reasoning(domain, vision_text, notes)
-
-    st.success(analysis)
-
+        if result:
+            st.success("Analysis complete")
+            st.markdown(result)
