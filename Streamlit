@@ -1,1 +1,3 @@
-https://github.com/0MohamedGama0/Engineering-Analysis-AI-web-App/settings/secrets/codespaces/STREAMLIT_SECRETS
+gh secret set STREAMLIT_SECRETS < file.txt
+
+
