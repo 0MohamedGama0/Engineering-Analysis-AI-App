@@ -31,27 +31,31 @@ TEXT_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
 headers = {"Authorization": f"Bearer {HF_API_KEY}"}
 
 
+API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base"
+HEADERS = {
+    "Authorization": f"Bearer {st.secrets['HF_API_KEY']}"
+}
+
 def vision_caption(image):
-    url = f"https://api-inference.huggingface.co/models/{VISION_MODEL}"
-    response = requests.post(url, headers=headers, files={"file": image})
-    return response.json()[0]["generated_text"]
+    response = requests.post(
+        API_URL,
+        headers=HEADERS,
+        files={"image": image}
+    )
 
+    # 🔴 SAFETY CHECK
+    if response.status_code != 200:
+        st.error("Hugging Face API Error")
+        st.write(response.text)
+        return "Error analyzing image."
 
-def reasoning(domain, vision_text, notes):
-    prompt = f"""
-Image description:
-{vision_text}
-
-User notes:
-{notes}
-
-Provide a structured engineering analysis for:
-{domain}
-"""
-    url = f"https://api-inference.huggingface.co/models/{TEXT_MODEL}"
-    payload = {"inputs": prompt}
-    response = requests.post(url, headers=headers, json=payload)
-    return response.json()[0]["generated_text"]
+    try:
+        data = response.json()
+        return data[0]["generated_text"]
+    except Exception:
+        st.error("Invalid API response")
+        st.write(response.text)
+        return "Model response error."
 
 
 # ---------------- Run ----------------
@@ -67,3 +71,4 @@ if st.button("Analyze Design") and image:
         analysis = reasoning(domain, vision_text, notes)
 
     st.success(analysis)
+
