@@ -1,6 +1,6 @@
 import streamlit as st
-import requests
-import base64
+from huggingface_hub import InferenceClient
+import os
 
 # ---------------- CONFIG ----------------
 st.set_page_config(
@@ -9,13 +9,11 @@ st.set_page_config(
     layout="centered"
 )
 
-HF_API_KEY = st.secrets["HF_API_KEY"]
-MODEL_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+# Get your Hugging Face API key from Streamlit secrets
+HF_TOKEN = st.secrets.get("HF_API_KEY", os.getenv("HF_API_KEY"))
 
-HEADERS = {
-    "Authorization": f"Bearer {HF_API_KEY}",
-    "Content-Type": "application/json"
-}
+# Initialize the InferenceClient with the new API
+client = InferenceClient(token=HF_TOKEN)
 
 # ---------------- UI ----------------
 st.title("🔧 Engineering Analysis AI")
@@ -59,35 +57,29 @@ Provide a structured engineering analysis including:
 - Strengths and weaknesses
 - Design improvements
 - Real-world applications
+
+Please format your response with clear headings and bullet points where appropriate.
 """
 
 # ---------------- LLM CALL ----------------
 def call_llm(prompt):
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "temperature": 0.5,
-            "max_new_tokens": 400
-        }
-    }
-
-    response = requests.post(
-        MODEL_URL,
-        headers=HEADERS,
-        json=payload,
-        timeout=60
-    )
-
-    if response.status_code != 200:
-        st.error(f"Model error: {response.text}")
-        return None
-
     try:
-        data = response.json()
-        return data[0]["generated_text"]
-    except Exception:
-        st.error("Failed to parse model response.")
-        st.text(response.text)
+        # Use the chat.completions endpoint with a supported model
+        response = client.chat.completions.create(
+            model="meta-llama/Llama-3.1-8B-Instruct",  # Supported model
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=400,
+            temperature=0.5
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        st.error(f"Error calling the model: {str(e)}")
+        st.info("This might be due to: 1) Missing 'Inference Providers' permission on your token, 2) Model not available, or 3) Rate limiting.")
         return None
 
 # ---------------- EXECUTION ----------------
@@ -95,10 +87,20 @@ if analyze:
     if not description:
         st.warning("Please describe the design.")
     else:
-        with st.spinner("Analyzing design..."):
+        with st.spinner("🤖 AI is analyzing your design..."):
             prompt = build_prompt(domain, description)
             result = call_llm(prompt)
 
         if result:
-            st.success("Analysis complete")
+            st.success("✅ Analysis Complete")
+            st.markdown("---")
+            st.subheader("📊 Engineering Analysis Results")
             st.markdown(result)
+            
+            # Add a download button for the analysis
+            st.download_button(
+                label="📥 Download Analysis",
+                data=result,
+                file_name=f"engineering_analysis_{domain.split('/')[0].lower().replace(' ', '_')}.txt",
+                mime="text/plain"
+            )
