@@ -1,11 +1,8 @@
 import streamlit as st
 import requests
-import base64
-from PIL import Image
-import io
 
 # ---------------- CONFIG ----------------
-HF_API_URL = "https://router.huggingface.co/hf-inference/models/Salesforce/blip-image-captioning-base"
+HF_API_URL = "https://router.huggingface.co/hf-inference/models/google/gemma-2b-it"
 HF_API_KEY = st.secrets["HF_API_KEY"]
 
 HEADERS = {
@@ -14,15 +11,12 @@ HEADERS = {
 }
 
 # ---------------- FUNCTIONS ----------------
-def encode_image(image):
-    buffered = io.BytesIO()
-    image.save(buffered, format="PNG")
-    return base64.b64encode(buffered.getvalue()).decode("utf-8")
-
-def vision_analysis(image_b64, domain, description):
+def call_llm(prompt):
     payload = {
-        "inputs": {
-            "image": image_b64
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 400,
+            "temperature": 0.4
         }
     }
 
@@ -36,62 +30,58 @@ def vision_analysis(image_b64, domain, description):
     if response.status_code != 200:
         return f"❌ API Error ({response.status_code}): {response.text}"
 
-    result = response.json()
-
-    caption = result[0]["generated_text"]
-
-    # Engineering-style post processing
-    analysis = f"""
-### 🧠 AI Vision Interpretation
-**Detected Design:** {caption}
-
-### 🏷 Domain
-{domain}
-
-### 📝 User Notes
-{description}
-
-### 🔧 Engineering Analysis
-- The image likely represents a mechanical or engineered system.
-- Structural elements and components appear consistent with the selected domain.
-- Further optimization may include material refinement, actuator selection, and structural validation.
-- Recommended next steps include CAD simulation, load testing, and functional prototyping.
-"""
-
-    return analysis
+    return response.json()[0]["generated_text"]
 
 # ---------------- STREAMLIT UI ----------------
 st.set_page_config(page_title="Engineering Analysis AI", layout="centered")
 
 st.title("🔧 Engineering Analysis AI")
-st.subheader("Vision-Based Design Understanding for Robotics & Engineering")
+st.caption("LLM-Based Design Reasoning for Robotics & Engineering")
 
 uploaded_image = st.file_uploader(
-    "Upload a design image",
+    "Upload an engineering-related image",
     type=["png", "jpg", "jpeg"]
 )
 
 domain = st.selectbox(
-    "Select design domain",
-    ["Robotics", "Product Design", "CAD / 3D Printing", "Electronics"]
+    "Select domain",
+    [
+        "Robotics / Mechanical Systems",
+        "Product Design",
+        "CAD Model / 3D Printed",
+        "Electronics / PCB Design"
+    ]
 )
 
 description = st.text_area(
-    "Describe the design (optional)",
-    placeholder="Example: robotic arm, gripper, mobile robot chassis..."
+    "Describe what you see in the image",
+    placeholder="Example: robotic arm with servo motors and aluminum links"
 )
 
 if uploaded_image:
-    image = Image.open(uploaded_image)
-    st.image(image, caption="Uploaded Design", use_column_width=True)
+    st.image(uploaded_image, caption="Uploaded Image", use_column_width=True)
 
 if st.button("Analyze Design"):
-    if not uploaded_image:
-        st.warning("Please upload an image.")
+    if not description:
+        st.warning("Please provide a brief description.")
     else:
-        with st.spinner("Analyzing image with AI..."):
-            image_b64 = encode_image(image)
-            analysis = vision_analysis(image_b64, domain, description)
+        with st.spinner("Analyzing design using AI..."):
+            prompt = f"""
+You are an engineering expert.
 
-        st.success("Analysis complete")
-        st.markdown(analysis)
+Domain: {domain}
+
+User description of the image:
+{description}
+
+Provide:
+1. Functional interpretation
+2. Key components
+3. Engineering considerations
+4. Possible improvements
+"""
+
+            result = call_llm(prompt)
+
+        st.success("Analysis Complete")
+        st.markdown(result)
