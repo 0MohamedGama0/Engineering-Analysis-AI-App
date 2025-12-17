@@ -3,65 +3,59 @@ import requests
 import base64
 from PIL import Image
 import io
+import os
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
+HF_API_KEY = st.secrets["HF_API_KEY"]
+HF_MODEL = "Salesforce/blip-image-captioning-base"
+HF_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
 
-# ------------------ Page Config ------------------
-st.set_page_config(
-    page_title="Engineering Analysis AI",
-    page_icon="🔧",
-    layout="centered"
-)
+headers = {
+    "Authorization": f"Bearer {HF_API_KEY}"
+}
+
+st.set_page_config(page_title="Engineering Analysis AI", layout="centered")
 
 st.title("🔧 Engineering Analysis AI")
-st.caption("Upload your design and get expert AI-powered engineering analysis")
+st.write("Upload an engineering or robotics design image for AI analysis")
 
-# ------------------ Sidebar ------------------
-st.sidebar.header("⚙️ Configuration")
-st.sidebar.info(
-    "This app uses:\n"
-    "- Moondream → Image understanding\n"
-    "- TinyLlama → Engineering reasoning\n\n"
-    "Optimized for low-spec laptops."
-)
+uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
 
-# ------------------ Domain Selection ------------------
-domain = st.selectbox(
-    "🏷️ Select the design domain",
-    [
-        "-- Select the domain --",
-        "Robotics / Mechanical Systems",
-        "Product Design",
-        "CAD Model / 3D Printed",
-        "Electronics / PCB Design"
-    ]
-)
+def analyze_image(image_bytes):
+    response = requests.post(
+        HF_URL,
+        headers=headers,
+        files={"file": image_bytes}
+    )
 
-# ------------------ Image Upload ------------------
-uploaded_file = st.file_uploader(
-    "📁 Upload your design image",
-    type=["jpg", "jpeg", "png"]
-)
+    if response.status_code != 200:
+        st.error("Hugging Face API error")
+        return None
 
-user_description = st.text_area(
-    "📝 Optional: Add your own notes (materials, function, concerns)",
-    height=120
-)
+    return response.json()
 
-# ------------------ Helper Functions ------------------
+if uploaded_file:
+    image = Image.open(uploaded_file)
+    st.image(image, caption="Uploaded Design", use_column_width=True)
 
-def image_to_base64(image_file):
-    image = Image.open(image_file)
-    buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
-    return base64.b64encode(buffer.getvalue()).decode()
+    if st.button("Analyze Design"):
+        with st.spinner("Analyzing with AI..."):
+            result = analyze_image(uploaded_file.getvalue())
 
+        if result:
+            caption = result[0]["generated_text"]
+            st.subheader("🧠 AI Interpretation")
+            st.write(caption)
 
-def call_ollama(payload):
-    response = requests.post(OLLAMA_URL, json=payload)
-    response.raise_for_status()
-    return response.json()["response"]
+            st.subheader("🔍 Engineering Insight")
+            st.write(f"""
+            This design appears to involve **{caption.lower()}**.
 
+            From an engineering perspective, this system likely involves:
+            - Mechanical structure and load-bearing components
+            - Actuation and motion control
+            - Potential integration with sensors or electronics
+            - Design-for-manufacturing considerations
+            """)
 
 def vision_analysis(image_b64):
     payload = {
@@ -120,3 +114,4 @@ if st.button("🚀 Analyze Design", disabled=not (uploaded_file and domain != "-
 
     st.subheader("📊 Engineering Analysis Result")
     st.success(analysis_result)
+
