@@ -29,30 +29,38 @@ VISION_MODEL = "Salesforce/blip-image-captioning-base"
 TEXT_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
 
 headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+import requests
+import streamlit as st
 
+HF_API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base"
+HF_HEADERS = {
+    "Authorization": f"Bearer {st.secrets['HF_API_KEY']}"
+}
 
-def vision_caption(image):
-    url = f"https://api-inference.huggingface.co/models/{VISION_MODEL}"
-    response = requests.post(url, headers=headers, files={"file": image})
-    return response.json()[0]["generated_text"]
+def vision_caption(image_bytes):
+    response = requests.post(
+        HF_API_URL,
+        headers=HF_HEADERS,
+        files={"file": image_bytes},
+        timeout=60
+    )
 
+    # 🔴 Handle API errors safely
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Hugging Face API error {response.status_code}: {response.text}"
+        )
 
-def reasoning(domain, vision_text, notes):
-    prompt = f"""
-Image description:
-{vision_text}
+    try:
+        data = response.json()
+    except Exception:
+        raise RuntimeError("Hugging Face returned non-JSON response")
 
-User notes:
-{notes}
+    # ✅ Expected format
+    if isinstance(data, list) and "generated_text" in data[0]:
+        return data[0]["generated_text"]
 
-Provide a structured engineering analysis for:
-{domain}
-"""
-    url = f"https://api-inference.huggingface.co/models/{TEXT_MODEL}"
-    payload = {"inputs": prompt}
-    response = requests.post(url, headers=headers, json=payload)
-    return response.json()[0]["generated_text"]
-
+    raise RuntimeError(f"Unexpected API response: {data}")
 
 # ---------------- Run ----------------
 if st.button("Analyze Design") and image:
@@ -67,3 +75,4 @@ if st.button("Analyze Design") and image:
         analysis = reasoning(domain, vision_text, notes)
 
     st.success(analysis)
+
