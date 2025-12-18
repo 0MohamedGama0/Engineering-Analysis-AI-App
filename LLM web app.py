@@ -31,43 +31,51 @@ TEXT_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
 headers = {"Authorization": f"Bearer {HF_API_KEY}"}
 
 
-def vision_caption(image):
-    API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base"
+def reasoning(domain, vision_text, notes):
+    API_URL = "https://api-inference.huggingface.co/models/google/gemma-2b-it"
     headers = {
         "Authorization": f"Bearer {st.secrets['HF_API_KEY']}"
     }
 
-    response = requests.post(
-        API_URL,
-        headers=headers,
-        files={"image": image}
-    )
+    prompt = f"""
+You are an expert in {domain} engineering.
 
-    # 🔍 DEBUG: check response status
+IMAGE DESCRIPTION:
+{vision_text}
+
+USER NOTES:
+{notes}
+
+Provide a structured engineering analysis including:
+- Technical overview
+- Key components
+- Design strengths
+- Limitations
+- Improvement suggestions
+"""
+
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 500,
+            "temperature": 0.3
+        }
+    }
+
+    response = requests.post(API_URL, headers=headers, json=payload)
+
     if response.status_code != 200:
-        st.error(f"Hugging Face API Error: {response.status_code}")
-        st.code(response.text)
-        return "❌ Model error"
+        return f"❌ LLM error: {response.text}"
 
-    # 🔍 Try parsing JSON safely
     try:
         data = response.json()
     except Exception:
-        st.error("Invalid response from Hugging Face")
-        st.code(response.text)
-        return "❌ Invalid API response"
+        return "❌ Invalid response from LLM"
 
-    # 🔍 Handle model loading
-    if isinstance(data, dict) and "error" in data:
-        if "loading" in data["error"].lower():
-            return "⏳ Model is loading, please try again in 20–30 seconds."
-        return f"❌ API Error: {data['error']}"
-
-    # 🔍 Expected successful response
     if isinstance(data, list) and "generated_text" in data[0]:
         return data[0]["generated_text"]
 
-    return "❌ Unexpected API response format"
+    return "❌ Unexpected LLM output"
 
 # ---------------- Run ----------------
 if st.button("Analyze Design") and image:
@@ -82,4 +90,5 @@ if st.button("Analyze Design") and image:
         analysis = reasoning(domain, vision_text, notes)
 
     st.success(analysis)
+
 
