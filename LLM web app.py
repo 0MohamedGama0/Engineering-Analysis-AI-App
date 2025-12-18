@@ -79,19 +79,6 @@ if uploaded_file:
             st.success("Analysis Complete")
             st.write(vision_text)
             
-# ---------------- Run ----------------
-if st.button("Analyze Design") and image:
-    st.image(image)
-
-    with st.spinner("Understanding image..."):
-        vision_text = vision_caption(image)
-
-    st.info(vision_text)
-
-    with st.spinner("Performing engineering analysis..."):
-        analysis = reasoning(domain, vision_text, notes)
-
-    st.success(analysis)
 
 
 
