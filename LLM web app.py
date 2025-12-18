@@ -3,35 +3,6 @@ import requests
 from PIL import Image
 import io
 
-st.set_page_config(page_title="Engineering Analysis AI", page_icon="🔧")
-
-st.title("🔧 Engineering Analysis AI")
-st.caption("Deployed on Streamlit Cloud using Hugging Face Inference API")
-
-# ---------------- Domain ----------------
-domain = st.selectbox(
-    "Select the domain",
-    [
-        "Robotics / Mechanical Systems",
-        "Product Design",
-        "CAD Model / 3D Printed",
-        "Electronics / PCB Design"
-    ]
-)
-
-image = st.file_uploader("Upload an engineering image", type=["jpg", "png"])
-notes = st.text_area("Optional user notes")
-
-# ---------------- Hugging Face API ----------------
-HF_API_KEY = st.secrets["HF_API_KEY"]
-
-VISION_MODEL = "Salesforce/blip-image-captioning-base"
-TEXT_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
-
-headers = {"Authorization": f"Bearer {HF_API_KEY}"}
-import requests
-import streamlit as st
-
 HF_API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base"
 HF_HEADERS = {
     "Authorization": f"Bearer {st.secrets['HF_API_KEY']}"
@@ -62,6 +33,7 @@ def vision_caption(image_bytes):
 
     raise RuntimeError(f"Unexpected API response: {data}")
 
+
 # ---------------- Run ----------------
 if st.button("Analyze Design") and image:
     st.image(image)
@@ -75,4 +47,5 @@ if st.button("Analyze Design") and image:
         analysis = reasoning(domain, vision_text, notes)
 
     st.success(analysis)
+
 
