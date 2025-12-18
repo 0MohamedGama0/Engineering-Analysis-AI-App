@@ -62,7 +62,29 @@ def vision_caption(image: Image.Image) -> str:
 
 TEXT_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
 
-def engineering_analysis(prompt: str) -> str:
+def engineering_analysis(caption, user_description, domain):
+    prompt = f"""
+You are an expert engineering AI.
+
+DOMAIN:
+{domain}
+
+IMAGE UNDERSTANDING (AI Vision):
+{caption}
+
+USER DESCRIPTION:
+{user_description}
+
+TASK:
+Provide a structured engineering analysis including:
+- System identification
+- Key components
+- Functionality
+- Design strengths
+- Weaknesses or risks
+- Suggested improvements
+"""
+
     response = requests.post(
         f"{BASE_URL}/{TEXT_MODEL}",
         headers={
@@ -134,6 +156,7 @@ if uploaded_file:
 
         st.subheader("📊 Engineering Analysis")
         st.write(analysis)
+
 
 
 
