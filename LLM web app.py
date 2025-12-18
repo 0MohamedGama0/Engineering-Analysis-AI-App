@@ -16,7 +16,12 @@ st.set_page_config(
 HF_API_KEY = st.secrets.get("HF_API_KEY", None)
 
 VISION_MODEL = "Salesforce/blip-image-captioning-base"
+if "HTTP" in caption:
+    caption = "AI vision unavailable. Analysis based on user description."
+
 TEXT_MODEL = "google/flan-t5-large"
+if "HTTP" in analysis:
+    analysis = "AI analysis unavailable. Please try again later."
 
 HEADERS = {
     "Authorization": f"Bearer {HF_API_KEY}"
@@ -156,6 +161,7 @@ if uploaded_file:
 
         st.subheader("📊 Engineering Analysis")
         st.write(analysis)
+
 
 
 
