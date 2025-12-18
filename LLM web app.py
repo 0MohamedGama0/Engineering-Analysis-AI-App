@@ -2,62 +2,98 @@ import streamlit as st
 import requests
 from PIL import Image
 import io
+import os
 
-HF_API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base"
-HF_HEADERS = {
-    "Authorization": f"Bearer {st.secrets['HF_API_KEY']}"
+# -----------------------------
+# CONFIG
+# -----------------------------
+st.set_page_config(
+    page_title="Engineering Analysis AI",
+    page_icon="🔧",
+    layout="centered"
+)
+
+HF_API_KEY = st.secrets.get("HF_API_KEY", None)
+
+VISION_MODEL = "Salesforce/blip-image-captioning-base"
+TEXT_MODEL = "google/flan-t5-large"
+
+HEADERS = {
+    "Authorization": f"Bearer {HF_API_KEY}"
 }
 
-def vision_caption(image_bytes):
+# -----------------------------
+# FUNCTIONS
+# -----------------------------
+def vision_caption(image: Image.Image) -> str:
+    """Generate image caption using Hugging Face Vision model"""
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    buffer.seek(0)
+
     response = requests.post(
-        HF_API_URL,
-        headers=HF_HEADERS,
-        files={"file": image_bytes},
-        timeout=60
+        f"https://api-inference.huggingface.co/models/{VISION_MODEL}",
+        headers=HEADERS,
+        data=buffer
     )
 
-    # 🔴 Handle API errors safely
     if response.status_code != 200:
-        raise RuntimeError(
-            f"Hugging Face API error {response.status_code}: {response.text}"
-        )
+        return f"Vision model error: {response.text}"
 
     try:
         data = response.json()
     except Exception:
-        raise RuntimeError("Hugging Face returned non-JSON response")
+        return "Vision model returned invalid JSON."
 
-    # ✅ Expected format
+    # Handle different HF response formats
     if isinstance(data, list) and "generated_text" in data[0]:
         return data[0]["generated_text"]
 
-    raise RuntimeError(f"Unexpected API response: {data}")
-    
-uploaded_file = st.file_uploader("Upload image", type=["png", "jpg", "jpeg"])
+    if isinstance(data, dict) and "error" in data:
+        return f"Vision model error: {data['error']}"
 
-if uploaded_file:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Image", use_container_width=True)
-
-    image_bytes = uploaded_file.getvalue()
-    caption = vision_caption(image_bytes)
-
-    st.success("Image Analysis Complete")
-    st.write(caption)
-
-# ---------------- Run ----------------
-if st.button("Analyze Design") and image:
-    st.image(image)
-
-    with st.spinner("Understanding image..."):
-        vision_text = vision_caption(image)
-
-    st.info(vision_text)
-
-    with st.spinner("Performing engineering analysis..."):
-        analysis = reasoning(domain, vision_text, notes)
-
-    st.success(analysis)
+    return "Unable to generate image caption."
 
 
+def engineering_analysis(caption: str, user_desc: str, domain: str) -> str:
+    prompt = f"""
+You are an expert engineering analyst.
 
+DOMAIN:
+{domain}
+
+IMAGE DESCRIPTION:
+{caption}
+
+USER DESCRIPTION:
+{user_desc}
+
+Provide a structured engineering analysis including:
+- Functionality
+- Components
+- Design strengths
+- Limitations
+- Improvement suggestions
+"""
+
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 400,
+            "temperature": 0.3
+        }
+    }
+
+    response = requests.post(
+        f"https://api-inference.huggingface.co/models/{TEXT_MODEL}",
+        headers=HEADERS,
+        json=payload
+    )
+
+    if response.status_code != 200:
+        return f"Text model error: {response.text}"
+
+    try:
+        data = response.json()
+    except Exception:
+        return "Text model
