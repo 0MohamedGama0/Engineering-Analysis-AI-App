@@ -30,6 +30,8 @@ TEXT_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
 
 headers = {"Authorization": f"Bearer {HF_API_KEY}"}
 
+import requests
+import streamlit as st
 
 def vision_caption(image):
     API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base"
@@ -43,18 +45,32 @@ def vision_caption(image):
         files={"image": image}
     )
 
+    # 🔍 DEBUG: check response status
     if response.status_code != 200:
-        return "❌ Hugging Face API error"
+        st.error(f"Hugging Face API Error: {response.status_code}")
+        st.code(response.text)
+        return "❌ Model error"
 
+    # 🔍 Try parsing JSON safely
     try:
         data = response.json()
     except Exception:
+        st.error("Invalid response from Hugging Face")
+        st.code(response.text)
         return "❌ Invalid API response"
 
+    # 🔍 Handle model loading
     if isinstance(data, dict) and "error" in data:
-        return f"❌ {data['error']}"
+        if "loading" in data["error"].lower():
+            return "⏳ Model is loading, please try again in 20–30 seconds."
+        return f"❌ API Error: {data['error']}"
 
-    return data[0]["generated_text"]
+    # 🔍 Expected successful response
+    if isinstance(data, list) and "generated_text" in data[0]:
+        return data[0]["generated_text"]
+
+    return "❌ Unexpected API response format"
+
 
 # =============================
 # 2️⃣ STREAMLIT UI
@@ -89,6 +105,7 @@ if st.button("Analyze Design") and image:
         analysis = reasoning(domain, vision_text, notes)
 
     st.success(analysis)
+
 
 
 
