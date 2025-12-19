@@ -3,6 +3,8 @@ import requests
 import io
 from PIL import Image
 
+# Replace your imports
+from huggingface_hub import InferenceClient
 
 # -----------------------------
 # CONFIG
@@ -15,8 +17,11 @@ st.set_page_config(
 
 HF_API_KEY = st.secrets.get("HF_API_KEY", None)
 
-VISION_MODEL = "Salesforce/blip-image-captioning-base"
-TEXT_MODEL = "google/flan-t5-large"
+
+
+# Initialize the clients at the top of your script
+vision_client = InferenceClient(token=HF_API_KEY)
+text_client = InferenceClient(token=HF_API_KEY)
 
 
 HEADERS = {
@@ -33,35 +38,23 @@ VISION_MODEL = "Salesforce/blip-image-captioning-base"
 BASE_URL = "https://api-inference.huggingface.co/models"
 
 # Your vision_caption function can then be updated like this:
+
+# Simplify your functions
 def vision_caption(image: Image.Image) -> str:
-    buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
-    buffer.seek(0)
-
-    response = requests.post(
-        f"{BASE_URL}/{VISION_MODEL}",
-        headers={
-            "Authorization": f"Bearer {HF_API_KEY}",
-        },
-        data=buffer.getvalue(),
-        timeout=60
-    )
-
-    # ... rest of your error handling logic
-
-    if response.status_code != 200:
-        return f"Vision model HTTP {response.status_code}: model unavailable or loading."
-
     try:
-        data = response.json()
-    except Exception:
-        return "Vision model returned invalid response."
+        # The client handles the image conversion and API call
+        result = vision_client.image_to_text(image=image)
+        return result
+    except Exception as e:
+        return f"Vision model error: {str(e)}"
 
-    if isinstance(data, list) and "generated_text" in data[0]:
-        return data[0]["generated_text"]
-
-    if "error" in data:
-        return f"Vision model error: {data['error']}"
+def engineering_analysis(caption, user_description, domain):
+    prompt = f"... {domain} ... {caption} ... {user_description} ..."
+    try:
+        result = text_client.text_generation(prompt=prompt, max_new_tokens=500, temperature=0.4)
+        return result
+    except Exception as e:
+        return f"Text model error: {str(e)}"
 
     return "Unable to generate image description."
 
@@ -161,6 +154,7 @@ if uploaded_file:
 
         st.subheader("📊 Engineering Analysis")
         st.write(analysis)
+
 
 
 
