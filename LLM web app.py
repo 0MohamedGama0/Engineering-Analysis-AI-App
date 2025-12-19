@@ -28,8 +28,11 @@ HEADERS = {
 # -----------------------------
 
 VISION_MODEL = "Salesforce/blip-image-captioning-base"
-BASE_URL = "https://router.huggingface.co/hf-inference/models"
 
+# Use the official inference endpoint. Replace BASE_URL with this:
+BASE_URL = "https://api-inference.huggingface.co/models"
+
+# Your vision_caption function can then be updated like this:
 def vision_caption(image: Image.Image) -> str:
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
@@ -39,11 +42,12 @@ def vision_caption(image: Image.Image) -> str:
         f"{BASE_URL}/{VISION_MODEL}",
         headers={
             "Authorization": f"Bearer {HF_API_KEY}",
-            "Accept": "application/json"
         },
-        files={"file": buffer},
+        data=buffer.getvalue(),
         timeout=60
     )
+
+    # ... rest of your error handling logic
 
     if response.status_code != 200:
         return f"Vision model HTTP {response.status_code}: model unavailable or loading."
@@ -157,6 +161,7 @@ if uploaded_file:
 
         st.subheader("📊 Engineering Analysis")
         st.write(analysis)
+
 
 
 
