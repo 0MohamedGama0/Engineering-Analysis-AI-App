@@ -1,9 +1,6 @@
 import streamlit as st
-import requests
 import io
 from PIL import Image
-
-# Replace your imports
 from huggingface_hub import InferenceClient
 
 # -----------------------------
@@ -15,32 +12,19 @@ st.set_page_config(
     layout="centered"
 )
 
+# Get API key from Streamlit secrets
 HF_API_KEY = st.secrets.get("HF_API_KEY", None)
 
-
-
-# Initialize the clients at the top of your script
+# Initialize the clients
 vision_client = InferenceClient(token=HF_API_KEY)
 text_client = InferenceClient(token=HF_API_KEY)
-
-
-HEADERS = {
-    "Authorization": f"Bearer {HF_API_KEY}"
-}
 
 # -----------------------------
 # FUNCTIONS
 # -----------------------------
 
-VISION_MODEL = "Salesforce/blip-image-captioning-base"
-
-# Use the official inference endpoint. Replace BASE_URL with this:
-BASE_URL = "https://api-inference.huggingface.co/models"
-
-# Your vision_caption function can then be updated like this:
-
-# Simplify your functions
 def vision_caption(image: Image.Image) -> str:
+    """Generate a caption for the uploaded image."""
     try:
         # The client handles the image conversion and API call
         result = vision_client.image_to_text(image=image)
@@ -49,18 +33,7 @@ def vision_caption(image: Image.Image) -> str:
         return f"Vision model error: {str(e)}"
 
 def engineering_analysis(caption, user_description, domain):
-    prompt = f"... {domain} ... {caption} ... {user_description} ..."
-    try:
-        result = text_client.text_generation(prompt=prompt, max_new_tokens=500, temperature=0.4)
-        return result
-    except Exception as e:
-        return f"Text model error: {str(e)}"
-
-    return "Unable to generate image description."
-
-TEXT_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
-
-def engineering_analysis(caption, user_description, domain):
+    """Generate engineering analysis based on image caption and user description."""
     prompt = f"""
 You are an expert engineering AI.
 
@@ -71,7 +44,7 @@ IMAGE UNDERSTANDING (AI Vision):
 {caption}
 
 USER DESCRIPTION:
-{user_description}
+{user_description if user_description else "No additional description provided by user."}
 
 TASK:
 Provide a structured engineering analysis including:
@@ -81,39 +54,20 @@ Provide a structured engineering analysis including:
 - Design strengths
 - Weaknesses or risks
 - Suggested improvements
+
+Keep the analysis concise, technical, and focused on the {domain} domain.
 """
-
-    response = requests.post(
-        f"{BASE_URL}/{TEXT_MODEL}",
-        headers={
-            "Authorization": f"Bearer {HF_API_KEY}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "inputs": prompt,
-            "parameters": {
-                "max_new_tokens": 500,
-                "temperature": 0.4
-            }
-        },
-        timeout=60
-    )
-
-    if response.status_code != 200:
-        return f"Text model HTTP {response.status_code}: model unavailable."
-
+    
     try:
-        data = response.json()
-    except Exception:
-        return "Text model returned invalid response."
-
-    if isinstance(data, list) and "generated_text" in data[0]:
-        return data[0]["generated_text"]
-
-    if "error" in data:
-        return f"Text model error: {data['error']}"
-
-    return "Unable to generate analysis."
+        # Use the text client for text generation
+        result = text_client.text_generation(
+            prompt=prompt,
+            max_new_tokens=500,
+            temperature=0.4
+        )
+        return result
+    except Exception as e:
+        return f"Text model error: {str(e)}"
 
 # -----------------------------
 # UI
@@ -133,7 +87,8 @@ domain = st.selectbox(
 
 user_description = st.text_area(
     "Describe the design (optional but recommended)",
-    height=120
+    height=120,
+    placeholder="Example: 'This is a robotic arm prototype with 4 degrees of freedom...'"
 )
 
 if uploaded_file:
@@ -154,14 +109,3 @@ if uploaded_file:
 
         st.subheader("📊 Engineering Analysis")
         st.write(analysis)
-
-
-
-
-
-
-
-
-
-
-
