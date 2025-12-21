@@ -1,265 +1,122 @@
 import streamlit as st
+import requests
+import base64
 from PIL import Image
-from huggingface_hub import InferenceClient
-import os
+import io
 
-# ==================== PAGE CONFIG ====================
+OLLAMA_URL = "http://localhost:11434/api/generate"
+
+# ------------------ Page Config ------------------
 st.set_page_config(
     page_title="Engineering Analysis AI",
     page_icon="🔧",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="centered"
 )
 
-# ==================== CUSTOM CSS ====================
-st.markdown("""
-<style>
-    .main-header {
-        text-align: center;
-        padding: 2rem 0;
+st.title("🔧 Engineering Analysis AI")
+st.caption("Upload your design and get expert AI-powered engineering analysis")
+
+# ------------------ Sidebar ------------------
+st.sidebar.header("⚙️ Configuration")
+st.sidebar.info(
+    "This app uses:\n"
+    "- Moondream → Image understanding\n"
+    "- TinyLlama → Engineering reasoning\n\n"
+    "Optimized for low-spec laptops."
+)
+
+# ------------------ Domain Selection ------------------
+domain = st.selectbox(
+    "🏷️ Select the design domain",
+    [
+        "-- Select the domain --",
+        "Robotics / Mechanical Systems",
+        "Product Design",
+        "CAD Model / 3D Printed",
+        "Electronics / PCB Design"
+    ]
+)
+
+# ------------------ Image Upload ------------------
+uploaded_file = st.file_uploader(
+    "📁 Upload your design image",
+    type=["jpg", "jpeg", "png"]
+)
+
+user_description = st.text_area(
+    "📝 Optional: Add your own notes (materials, function, concerns)",
+    height=120
+)
+
+# ------------------ Helper Functions ------------------
+
+def image_to_base64(image_file):
+    image = Image.open(image_file)
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode()
+
+
+def call_ollama(payload):
+    response = requests.post(OLLAMA_URL, json=payload)
+    response.raise_for_status()
+    return response.json()["response"]
+
+
+def vision_analysis(image_b64):
+    payload = {
+        "model": "moondream",
+        "prompt": "Describe this engineering image clearly and objectively.",
+        "images": [image_b64],
+        "stream": False
     }
-    .logo {
-        font-size: 4rem;
-        margin-bottom: 1rem;
-    }
-    .analysis-card {
-        background-color: #f8f9fa;
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        border-left: 5px solid #3498db;
-    }
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 0.75rem 2rem;
-        font-weight: 600;
-    }
-    .demo-notice {
-        background: #fff3cd;
-        color: #856404;
-        padding: 1rem;
-        border-radius: 6px;
-        margin: 1rem 0;
-        border-left: 4px solid #ffc107;
-    }
-</style>
-""", unsafe_allow_html=True)
+    return call_ollama(payload)
 
-# ==================== INITIALIZATION ====================
-# Get API key from Streamlit secrets
-HF_API_KEY = st.secrets.get("HF_API_KEY", os.environ.get("HF_API_KEY", None))
 
-# Initialize Hugging Face clients if API key is available
-if HF_API_KEY:
-    vision_client = InferenceClient(model="Salesforce/blip-image-captioning-base", token=HF_API_KEY)
-    text_client = InferenceClient(model="mistralai/Mistral-7B-Instruct-v0.2", token=HF_API_KEY)
-else:
-    vision_client = None
-    text_client = None
-
-# ==================== FUNCTIONS ====================
-def vision_caption(image: Image.Image) -> str:
-    """Generate caption using Hugging Face vision model"""
-    if not vision_client:
-        return "[DEMO] This would describe the uploaded image. Real analysis requires Hugging Face API key."
-    
-    try:
-        result = vision_client.image_to_text(image=image)
-        return result
-    except Exception as e:
-        return f"Vision model error: {str(e)}"
-
-def engineering_analysis(caption: str, user_description: str, domain: str) -> str:
-    """Generate engineering analysis using Hugging Face LLM"""
-    if not text_client:
-        return f"""[DEMO] Engineering Analysis for {domain}
-        
-Based on your description: "{user_description[:100]}..."
-
-✅ TECHNICAL ASSESSMENT:
-- Design appears functional and well-structured
-- Appropriate materials and mechanisms for intended use
-- Good consideration of user requirements
-
-⚠️ RECOMMENDATIONS:
-1. Conduct detailed stress analysis
-2. Prototype and test with real users
-3. Consider manufacturing constraints
-4. Evaluate cost optimization opportunities
-
-📈 NEXT STEPS:
-- Create detailed CAD models
-- Build functional prototype
-- Test in real-world conditions
-- Iterate based on feedback"""
-    
+def engineering_analysis(domain, vision_text, user_text):
     prompt = f"""
-You are an expert engineering AI analyzing design images.
+You are an expert engineering analyst.
 
-DOMAIN: {domain}
+IMAGE INTERPRETATION (AI Vision):
+{vision_text}
 
-IMAGE UNDERSTANDING:
-{caption}
+USER NOTES:
+{user_text if user_text else "No additional notes provided."}
 
-USER DESCRIPTION:
-{user_description if user_description else "No additional description provided."}
+TASK:
+1. Validate the image interpretation
+2. Correct inconsistencies if any
+3. Provide structured, domain-specific engineering analysis
+4. Identify risks and improvements
 
-TASK: Provide structured engineering analysis including:
-1. System/Component Identification
-2. Key Technical Specifications
-3. Design Strengths & Weaknesses
-4. Manufacturing Considerations
-5. Improvement Suggestions
-6. Safety & Reliability Factors
+DOMAIN:
+{domain}
 
-Format response with clear sections and bullet points.
+Respond professionally and clearly.
 """
-    
-    try:
-        result = text_client.text_generation(
-            prompt=prompt,
-            max_new_tokens=500,
-            temperature=0.4
-        )
-        return result
-    except Exception as e:
-        return f"Text model error: {str(e)}"
+    payload = {
+        "model": "tinyllama:latest",
+        "prompt": prompt,
+        "stream": False
+    }
+    return call_ollama(payload)
 
-# ==================== SIDEBAR ====================
-with st.sidebar:
-    st.title("⚙️ Configuration")
-    
-    st.markdown("---")
-    st.subheader("🔑 API Status")
-    
-    if HF_API_KEY:
-        st.success("✅ Hugging Face API Connected")
-        st.caption("Real AI analysis enabled")
-    else:
-        st.warning("⚠️ DEMO MODE")
-        st.caption("Add HF_API_KEY to secrets for full functionality")
-    
-    st.markdown("---")
-    st.subheader("ℹ️ About")
-    
-    st.info("""
-    **Engineering Analysis AI** provides:
-    
-    - 🤖 Technical design analysis
-    - 🔍 Engineering recommendations
-    - ⚙️ Manufacturing considerations
-    - 🎯 Improvement suggestions
-    
-    *Assignment 4 - LLM Web App Deployment*
-    """)
-    
-    st.markdown("---")
-    st.caption("Built with Streamlit & Hugging Face")
 
-# ==================== MAIN CONTENT ====================
-# Title
-st.markdown('<div class="logo">🔧</div>', unsafe_allow_html=True)
-st.markdown('<div class="main-header"><h1>Engineering Analysis AI</h1><p>Upload your design and get expert AI-powered engineering analysis</p></div>', unsafe_allow_html=True)
+# ------------------ Run Analysis ------------------
+if st.button("🚀 Analyze Design", disabled=not (uploaded_file and domain != "-- Select the domain --")):
 
-# Demo notice if no API key
-if not HF_API_KEY:
-    st.markdown("""
-    <div class="demo-notice">
-    ⚠️ <strong>DEMO MODE</strong> - Showing interface and workflow. 
-    For full AI functionality, add Hugging Face API key to Streamlit secrets.
-    </div>
-    """, unsafe_allow_html=True)
+    st.subheader("📷 Uploaded Image")
+    st.image(uploaded_file, use_column_width=True)
 
-# ==================== FORM INPUTS ====================
-st.markdown("---")
+    with st.spinner("🔍 Understanding image..."):
+        image_b64 = image_to_base64(uploaded_file)
+        vision_result = vision_analysis(image_b64)
 
-col1, col2 = st.columns(2)
+    st.subheader("🧠 AI Image Interpretation")
+    st.info(vision_result)
 
-with col1:
-    st.subheader("📁 Upload Your Design")
-    
-    uploaded_file = st.file_uploader(
-        "Choose an engineering design image",
-        type=['jpg', 'jpeg', 'png', 'gif'],
-        help="CAD models, robotics, mechanisms, products, etc."
-    )
-    
-    if uploaded_file is not None:
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Design", use_column_width=True)
-        if HF_API_KEY:
-            st.success("✅ Image ready for analysis")
-        else:
-            st.info("📄 Image uploaded (demo mode)")
+    with st.spinner("⚙️ Performing engineering analysis..."):
+        analysis_result = engineering_analysis(domain, vision_result, user_description)
 
-with col2:
-    st.subheader("🎯 Analysis Settings")
-    
-    domain = st.selectbox(
-        "🏷️ What type of design is this?",
-        options=["Robotics / Mechanical Systems", "Product Design", "CAD Model / 3D Design", 
-                 "Mechanical Mechanism", "Electronics / PCB Design", "Other Engineering Design"]
-    )
-    
-    description = st.text_area(
-        "📝 Describe what you see in the image:",
-        height=150,
-        placeholder="Example: 'This is a 4-degree-of-freedom robotic arm with servo motors, aluminum frame, and gripper mechanism...'",
-        help="Be specific about components, materials, mechanisms, and intended function"
-    )
-
-# ==================== ANALYSIS BUTTON ====================
-st.markdown("---")
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    analyze_button = st.button(
-        "🚀 Generate Engineering Analysis",
-        type="primary",
-        use_container_width=True,
-        disabled=not uploaded_file
-    )
-
-# ==================== ANALYSIS RESULTS ====================
-if analyze_button and uploaded_file:
-    with st.spinner("🤖 AI is analyzing your design..."):
-        # Generate analysis
-        caption = vision_caption(image)
-        analysis = engineering_analysis(caption, description, domain)
-    
-    # Display results
-    st.subheader("🧠 AI Image Understanding")
-    st.info(caption)
-    
-    st.subheader("📊 Engineering Analysis Results")
-    
-    with st.container():
-        st.markdown("""
-        <div class="analysis-card">
-        """, unsafe_allow_html=True)
-        
-        st.markdown(analysis)
-        
-        st.markdown("""
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Download button
-    st.download_button(
-        label="📥 Download Analysis Report",
-        data=analysis,
-        file_name=f"engineering_analysis_{domain.replace(' ', '_')}.txt",
-        mime="text/plain",
-        use_container_width=True
-    )
-
-# ==================== FOOTER ====================
-st.markdown("---")
-st.markdown("""
-<div style="text-align: center; color: #7f8c8d; padding: 2rem;">
-    <p><strong>Engineering Analysis AI</strong> | Assignment 4 - LLM Web App Deployment</p>
-    <p><small>Course: Large Language Models | Student: [Your Name]</small></p>
-</div>
-""", unsafe_allow_html=True)
+    st.subheader("📊 Engineering Analysis Result")
+    st.success(analysis_result)
