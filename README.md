@@ -1,15 +1,43 @@
-# Engineering-Analysis-AI-web-App
-The Engineering Analysis AI is a web-based application that enables engineers, designers, and robotics enthusiasts to upload technical images (CAD models, mechanical designs, robotics systems, product designs) and receive AI-powered technical analysis.This project is a Streamlit-based LLM web application for engineering design analysis.
+# 🔧 Engineering Analysis AI — Vision-Language Web Application
 
-## Features
-- Image-based engineering understanding
-- Domain-specific analysis
-- Public deployment on Streamlit Cloud
+![Python](https://img.shields.io/badge/Python-3.8+-blue?logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red?logo=streamlit&logoColor=white)
+![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Inference%20API-yellow?logo=huggingface)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit%20Cloud-brightgreen)
 
-## Architecture
-- Local Version: Ollama (Moondream + TinyLlama)
-- Cloud Version: Hugging Face Inference API
+A professional web application for AI-powered engineering design analysis, combining computer vision and large language models. This project was created for **Assignment 4: Deploy LLM Web Applications to Streamlit Cloud** as part of the Large Language Models course.
 
-## Deployment
-Deployed on Streamlit Cloud:
-https://your-app-name.streamlit.app
+**Live Demo:** [https://engineering-analysis-ai.streamlit.app/](https://engineering-analysis-ai.streamlit.app/)
+
+---
+
+## 🎯 Overview
+
+| Aspect | Details |
+|--------|---------|
+| **Course** | Large Language Models |
+| **Assignment** | #4: Streamlit Cloud Deployment |
+| **Student** | [Your Name] |
+| **Student ID** | [Your Student ID] |
+| **AI Models** | BLIP (Vision) + Mistral-7B (Text) |
+| **Deployment** | Streamlit Cloud + Hugging Face Inference API |
+
+> [!NOTE]
+> This application demonstrates a complete LLM web app deployment pipeline from local development to cloud hosting with professional API integration.
+
+---
+
+## ✨ Features
+
+- ✅ **Dual-Model AI Pipeline** — Computer vision + LLM for comprehensive analysis
+- ✅ **Multi-Domain Engineering Analysis** — Robotics, CAD, Electronics, Product Design, etc.
+- ✅ **Professional Interface** — Clean, responsive Streamlit UI with custom CSS
+- ✅ **Robust Error Handling** — Graceful fallbacks for API failures
+- ✅ **Secure API Integration** — Hugging Face Inference API with secret management
+- ✅ **Export Capability** — Download analysis reports as text files
+- ✅ **Demo Mode** — Functional interface without API key requirements
+
+---
+
+## 🏗️ Architecture
