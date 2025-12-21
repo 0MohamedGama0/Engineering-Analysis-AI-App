@@ -40,7 +40,8 @@ A professional web application for AI-powered engineering design analysis, combi
 
 ---
 
-## 🏗️ Architecture
+### 🏗️ Architecture
+```
 ┌─────────────────────────────────────────────┐
 │ Streamlit UI Layer                          │
 │ ┌──────────────────────────────────────┐    │
@@ -67,6 +68,7 @@ A professional web application for AI-powered engineering design analysis, combi
 │ └──────────────────────────────────────┘    │
 └─────────────────────────────────────────────┘
 
+```
 
 ---
 
@@ -111,9 +113,9 @@ git commit -m "Deploy Engineering Analysis AI"
 git push origin main
 
 ##📦 Dependencies
-streamlit>=1.28.0        # Web application framework
-Pillow>=10.0.0           # Image processing
-huggingface_hub>=0.20.0  # Hugging Face API client
+  streamlit>=1.28.0        # Web application framework
+  Pillow>=10.0.0           # Image processing
+  huggingface_hub>=0.20.0  # Hugging Face API client
 
 ##📁 Project Structure
 engineering-analysis-ai/
@@ -126,3 +128,41 @@ engineering-analysis-ai/
 └── assets/                    # Screenshots and resources
     ├── screenshot-1.png
     └── architecture.png
+
+
+Process Description:
+
+text
+1. Local Development Phase (4 hours)
+   - Created HTML/JavaScript version with Ollama
+   - Tested with TinyLlama model
+   - Implemented image upload and description
+
+2. Cloud Adaptation Phase (3 hours)
+   - Converted to Streamlit Python app
+   - Integrated Hugging Face Inference API
+   - Added professional UI with custom CSS
+
+3. Deployment Phase (2 hours)
+   - Created GitHub repository
+   - Configured Streamlit Cloud deployment
+   - Set up API key management with secrets
+
+4. Testing & Documentation (3 hours)
+   - Tested both demo and full API modes
+   - Created professional README.md
+   - Prepared assignment report
+  
+
+
+📧 Contact
+Student: [Mohamed Ishag Hassan]
+Course: ISE- UCAS
+Assignment: #4 - Streamlit Cloud Deployment
+
+Live App: https://engineering-analysis-ai.streamlit.app/
+GitHub: https://github.com/yourusername/engineering-analysis-ai
+
+Built with Passion for Assignment 4 - LLM Web Application Deployment
+
+##Keep moving forward 
