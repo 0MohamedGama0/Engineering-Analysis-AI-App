@@ -41,3 +41,88 @@ A professional web application for AI-powered engineering design analysis, combi
 ---
 
 ## 🏗️ Architecture
+┌─────────────────────────────────────────────┐
+│ Streamlit UI Layer                          │
+│ ┌──────────────────────────────────────┐    │
+│ │ Image Upload | Domain Selection      │    │
+│ │ Description Input | Analysis Display │    │
+│ └──────────────────────────────────────┘    │
+└─────────────────────────────────────────────┘
+↓
+┌─────────────────────────────────────────────┐
+│ Hugging Face API Gateway                    │
+│ ┌──────────────────────────────────────┐    │
+│ │ Vision Model (BLIP)                  │    │
+│ │ Text Model (Mistral-7B-Instruct)     │    │
+│ │ Authentication & Rate Limiting       │    │
+│ └──────────────────────────────────────┘    │
+└─────────────────────────────────────────────┘
+↓
+┌─────────────────────────────────────────────┐
+│ Analysis Engine                             │
+│ ┌──────────────────────────────────────┐    │
+│ │ Prompt Engineering                   │    │
+│ │ Domain-Specific Templates            │    │
+│ │ Response Formatting                  │    │
+│ └──────────────────────────────────────┘    │
+└─────────────────────────────────────────────┘
+
+
+---
+
+## 🚀 Quick Deployment
+
+### Prerequisites
+
+- Python 3.8 or higher
+- Git installed
+- Hugging Face account (for full functionality)
+- Streamlit Cloud account
+
+### Local Development
+
+1. **Clone and setup:**
+   ```bash
+   git clone https://github.com/yourusername/engineering-analysis-ai.git
+   cd engineering-analysis-ai
+   
+   # Create virtual environment
+   python -m venv .venv
+   
+   # Activate (Windows)
+   .venv\Scripts\activate
+   
+   # Activate (macOS/Linux)
+   source .venv/bin/activate
+   
+   # Install dependencies
+   pip install -r requirements.txt
+
+
+
+   # Create secrets file
+mkdir .streamlit
+echo 'HF_API_KEY = "your_huggingface_token_here"' > .streamlit/secrets.toml
+
+##Streamlit Cloud Deployment
+##Push to GitHub:
+git add .
+git commit -m "Deploy Engineering Analysis AI"
+git push origin main
+
+##📦 Dependencies
+streamlit>=1.28.0        # Web application framework
+Pillow>=10.0.0           # Image processing
+huggingface_hub>=0.20.0  # Hugging Face API client
+
+##📁 Project Structure
+engineering-analysis-ai/
+├── app.py                      # Main Streamlit application
+├── requirements.txt            # Python dependencies
+├── README.md                   # This documentation
+├── .streamlit/
+│   ├── secrets.toml           # API key configuration
+│   └── config.toml            # Streamlit settings
+└── assets/                    # Screenshots and resources
+    ├── screenshot-1.png
+    └── architecture.png
