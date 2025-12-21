@@ -2,3 +2,5 @@ streamlit>=1.28.0
 pillow>=10.0.0
 huggingface_hub>=0.20.0
 requests>=2.31.0
+huggingface_hub>=0.20.0
+
