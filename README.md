@@ -4,7 +4,7 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red?logo=streamlit&logoColor=white)
 ![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Inference%20API-yellow?logo=huggingface)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Live Demo] https://engineering-analysis-ai-web-app.streamlit.app/
+![Live Demo] [https://engineering-analysis-ai-web-app.streamlit.app/](https://engineering-analysis-ai-web-app.streamlit.app/)
 
 A professional web application for AI-powered engineering design analysis, combining computer vision and large language models. This project was created for **Assignment 4: Deploy LLM Web Applications to Streamlit Cloud** as part of the Large Language Models course.
 
