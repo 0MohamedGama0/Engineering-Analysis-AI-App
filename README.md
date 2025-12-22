@@ -159,6 +159,6 @@ Assignment: #4 - Streamlit Cloud Deployment
 Live App: https://engineering-analysis-ai.streamlit.app/
 GitHub: https://github.com/yourusername/engineering-analysis-ai
 
-Built with Passion for Assignment 4 - LLM Web Application Deployment
+Built with Passion for innovators
 
 ## Keep moving forward 
