@@ -1,153 +1,218 @@
 import streamlit as st
-import io
+import requests
+import base64
 from PIL import Image
-from huggingface_hub import InferenceClient
+import io
 
-# -----------------------------
-# CONFIG
-# -----------------------------
+# --------------------------------------------------
+# Page Config
+# --------------------------------------------------
 st.set_page_config(
     page_title="Engineering Analysis AI",
     page_icon="🔧",
-    layout="centered"
+    layout="wide"
 )
 
-# Get API key from Streamlit secrets
-HF_API_KEY = st.secrets.get("HF_API_KEY", None)
+# --------------------------------------------------
+# Constants & Models
+# --------------------------------------------------
+BASE_URL = "https://router.huggingface.co/hf-inference/models"
 
-# Model names
-VISION_MODEL = "Salesforce/blip-image-captioning-base"
-TEXT_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"  # Use this instead of Mistral-Nemo
+VISION_MODEL = "qwen/qwen-2.5-vl-7b-instruct:free"
+TEXT_MODEL = "xiaomi/mimo-v2-flash:free"
 
-# Initialize the clients with specific models
-vision_client = InferenceClient(model=VISION_MODEL, token=HF_API_KEY)
-text_client = InferenceClient(model=TEXT_MODEL, token=HF_API_KEY)
+HF_API_KEY = st.secrets.get("HF_API_KEY")
+if not HF_API_KEY:
+    st.error("HF_API_KEY is missing. Please add it in Streamlit Secrets.")
+    st.stop()
 
-# -----------------------------
-# FUNCTIONS
-# -----------------------------
+HEADERS = {
+    "Authorization": f"Bearer {HF_API_KEY}"
+}
 
-def vision_caption(image: Image.Image) -> str:
-    """Generate a caption for the uploaded image."""
+# --------------------------------------------------
+# Session State
+# --------------------------------------------------
+if "vl_failed" not in st.session_state:
+    st.session_state.vl_failed = False
+
+if "vision_result" not in st.session_state:
+    st.session_state.vision_result = ""
+
+if "final_analysis" not in st.session_state:
+    st.session_state.final_analysis = ""
+
+# --------------------------------------------------
+# Helper Functions
+# --------------------------------------------------
+def image_to_base64(image: Image.Image) -> str:
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+
+def vision_language_analysis(image: Image.Image) -> str:
+    """Primary Vision-Language model call"""
+    img_b64 = image_to_base64(image)
+
+    payload = {
+        "inputs": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": img_b64},
+                    {"type": "text", "text": "Describe the engineering object or system in this image."}
+                ]
+            }
+        ]
+    }
+
+    response = requests.post(
+        f"{BASE_URL}/{VISION_MODEL}",
+        headers={**HEADERS, "Content-Type": "application/json"},
+        json=payload,
+        timeout=90
+    )
+
+    if response.status_code != 200:
+        return "VISION_ERROR"
+
     try:
-        # Convert PIL Image to bytes for the API
-        buffer = io.BytesIO()
-        image.save(buffer, format="PNG")
-        buffer.seek(0)
-        image_bytes = buffer.getvalue()
-        
-        # Use image captioning API
-        result = vision_client.image_to_text(image=image_bytes)
-        
-        # The result might be a dictionary, extract the text
-        if isinstance(result, dict) and "generated_text" in result:
-            return result["generated_text"]
-        elif isinstance(result, list) and len(result) > 0:
-            # Handle list response format
-            if isinstance(result[0], dict) and "generated_text" in result[0]:
-                return result[0]["generated_text"]
-            else:
-                return str(result[0])
-        else:
-            return str(result)
-            
-    except Exception as e:
-        return f"Vision model error: {str(e)}"
+        data = response.json()
+    except Exception:
+        return "VISION_ERROR"
 
-def engineering_analysis(caption, user_description, domain):
-    """Generate engineering analysis based on image caption and user description."""
-    prompt = f"""You are an expert engineering AI.
+    try:
+        return data["choices"][0]["message"]["content"]
+    except Exception:
+        return "VISION_ERROR"
+
+
+def text_only_analysis(text_input: str, domain: str) -> str:
+    """Fallback Text-only analysis"""
+    prompt = f"""
+You are an expert engineering analyst.
 
 DOMAIN:
 {domain}
 
-IMAGE UNDERSTANDING (AI Vision):
-{caption}
-
-USER DESCRIPTION:
-{user_description if user_description else "No additional description provided by user."}
+INPUT DESCRIPTION:
+{text_input}
 
 TASK:
 Provide a structured engineering analysis including:
-- System identification
+- Identification of the system or object
 - Key components
 - Functionality
 - Design strengths
-- Weaknesses or risks
+- Limitations or risks
 - Suggested improvements
-
-Keep the analysis concise, technical, and focused on the {domain} domain.
 """
-    
+
+    response = requests.post(
+        f"{BASE_URL}/{TEXT_MODEL}",
+        headers={**HEADERS, "Content-Type": "application/json"},
+        json={
+            "inputs": prompt,
+            "parameters": {
+                "max_new_tokens": 500,
+                "temperature": 0.4
+            }
+        },
+        timeout=90
+    )
+
+    if response.status_code != 200:
+        return "TEXT_ERROR"
+
     try:
-        # Use text generation with proper parameters
-        result = text_client.text_generation(
-            prompt,
-            max_new_tokens=500,
-            temperature=0.4,
-            do_sample=True
-        )
-        return result
-    except Exception as e:
-        # Try alternative API method if text_generation fails
-        try:
-            # Use conversational API as fallback
-            messages = [{"role": "user", "content": prompt}]
-            result = text_client.chat_completion(
-                messages=messages,
-                max_tokens=500,
-                temperature=0.4
-            )
-            return result.choices[0].message.content
-        except Exception as e2:
-            return f"Text model error: {str(e)}\nFallback also failed: {str(e2)}"
+        data = response.json()
+    except Exception:
+        return "TEXT_ERROR"
 
-# -----------------------------
-# UI
-# -----------------------------
+    if isinstance(data, list) and "generated_text" in data[0]:
+        return data[0]["generated_text"]
+
+    if "generated_text" in data:
+        return data["generated_text"]
+
+    return "TEXT_ERROR"
+
+# --------------------------------------------------
+# UI Layout
+# --------------------------------------------------
 st.title("🔧 Engineering Analysis AI")
-st.caption("Vision-Language AI for Robotics & Design Engineering")
+st.caption("Vision–Language Engineering Analysis with Robust Fallback")
 
-uploaded_file = st.file_uploader(
-    "Upload an engineering or design image",
-    type=["png", "jpg", "jpeg"]
-)
+left, right = st.columns(2)
 
-domain = st.selectbox(
-    "Select domain",
-    ["Robotics", "Product Design", "Mechanical", "Electronics", "CAD / 3D Printing"]
-)
+# --------------------------------------------------
+# Left Column: Inputs
+# --------------------------------------------------
+with left:
+    st.subheader("Input")
 
-user_description = st.text_area(
-    "Describe the design (optional but recommended)",
-    height=120,
-    placeholder="Example: 'This is a robotic arm prototype with 4 degrees of freedom...'"
-)
+    uploaded_file = st.file_uploader(
+        "Upload an engineering-related image (JPG / PNG)",
+        type=["jpg", "jpeg", "png"]
+    )
 
-if uploaded_file and st.button("Analyze Design"):
-    if not HF_API_KEY:
-        st.error("Hugging Face API key not found. Add it to Streamlit secrets.")
-        st.stop()
-    
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Design", use_container_width=True)
-    
-    with st.spinner("Analyzing design using AI..."):
-        with st.status("Processing...", expanded=True) as status:
-            status.update(label="📷 Generating image caption...", state="running")
-            caption = vision_caption(image)
-            
-            status.update(label="🤖 Performing engineering analysis...", state="running")
-            analysis = engineering_analysis(caption, user_description, domain)
-            
-            status.update(label="✅ Analysis complete!", state="complete")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("🧠 AI Image Understanding")
-        st.info(caption)
-    
-    with col2:
-        st.subheader("📊 Engineering Analysis")
-        st.success(analysis)
+    domain = st.selectbox(
+        "Select the domain",
+        [
+            "Robotics / Mechanical Systems",
+            "Product Design",
+            "CAD Model / 3D Printed",
+            "Electronics / PCB Design"
+        ]
+    )
+
+    if uploaded_file:
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Uploaded Image", height=260)
+
+        if st.button("Analyze Image"):
+            with st.spinner("Running vision-language analysis..."):
+                result = vision_language_analysis(image)
+
+            if result == "VISION_ERROR":
+                st.session_state.vl_failed = True
+                st.warning(
+                    "Vision model is temporarily unavailable.\n"
+                    "Please enter a short description manually."
+                )
+            else:
+                st.session_state.vision_result = result
+                st.session_state.vl_failed = False
+
+    if st.session_state.vl_failed:
+        manual_input = st.text_input(
+            "Manual description (fallback mode)",
+            placeholder="Example: robotic arm with 4 DOF and gripper"
+        )
+
+        if st.button("Analyze via Text Model"):
+            with st.spinner("Running text-only analysis..."):
+                st.session_state.final_analysis = text_only_analysis(
+                    manual_input, domain
+                )
+
+# --------------------------------------------------
+# Right Column: Results
+# --------------------------------------------------
+with right:
+    st.subheader("Results")
+
+    if st.session_state.vision_result:
+        st.markdown("### 🧠 AI Image Understanding")
+        st.write(st.session_state.vision_result)
+
+        if st.button("Generate Engineering Analysis"):
+            with st.spinner("Generating engineering analysis..."):
+                st.session_state.final_analysis = text_only_analysis(
+                    st.session_state.vision_result, domain
+                )
+
+    if st.session_state.final_analysis:
+        st.markdown("### 📊 Engineering Analysis")
+        st.write(st.session_state.final_analysis)
