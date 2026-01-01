@@ -6,7 +6,7 @@
 ![OpenAI SDK](https://img.shields.io/badge/OpenAI%20SDK-Compatible-green)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-A professional web application for **AI-powered engineering design analysis**, combining advanced **vision-language models** with structured LLM reasoning. This project was created as part of a **Data Science / Large Language Models course assignment** at the University of Chinese Academy of Sciences (UCAS), under the guidance of Prof. Tiejiān Luó (tiejianluo@gmail.com).
+A professional web application for **AI-powered engineering design analysis**, combining advanced **vision-language models** with structured LLM reasoning. This project was created as part of a **Data Science / Large Language Models course assignment** at the University of Chinese Academy of Sciences (UCAS), under the guidance of Prof.Luó 
 
 **Live Demo:** [https://engineering-analysis-ai.streamlit.app/](https://engineering-analysis-ai.streamlit.app/)
 
